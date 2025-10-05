@@ -1,0 +1,47 @@
+[project]
+name = "simple-mqtt"
+description = "Framework for building easy MQTT applications"
+readme = { file = "README.md", content-type = "text/markdown" }
+requires-python = ">=3.8"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Dev-CorliJoni" }]
+keywords = ["mqtt", "iot"]
+
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Operating System :: OS Independent",
+  "Topic :: Internet",
+  "Topic :: Software Development :: Libraries :: Python Modules"
+]
+
+dynamic = ["version","dependencies"]
+
+[project.urls]
+Homepage = "https://github.com/Dev-CorliJoni/simple-mqtt"
+Source   = "https://github.com/Dev-CorliJoni/simple-mqtt"
+Issues   = "https://github.com/Dev-CorliJoni/simple-mqtt/issues"
+
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["simplemqtt*"]
+exclude = ["tests*"]
+
+[tool.setuptools.package-data]
+simplemqtt = ["py.typed"]
+
+[tool.setuptools.dynamic]
+version = { attr = "simplemqtt.__version__" }
+dependencies = { file = "requirements.txt" }
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"

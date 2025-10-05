@@ -1,0 +1,17 @@
+# Ignore custom files/directories
+.jh*
+.DS_Store
+.git/
+
+tests
+dist
+
+simple_mqtt.egg-info
+venv
+.idea
+.venv
+.direnv
+.envrc
+.env
+
+*/__pycache__
