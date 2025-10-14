@@ -1,33 +1,29 @@
 from __future__ import annotations
 
+from typing import TypeVar, Generic, Type
+
 import paho.mqtt.client as mqtt
 from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.properties import Properties
 
-from simplemqtt.setup_logging import get_logger
-from simplemqtt.types import QualityOfService as QoS
-from simplemqtt.mqtt_config import MQTTConfig
-from simplemqtt.mqtt_connections import MQTTConnectionV3, MQTTConnectionV5, MqttConnectionBase
+from ..setup_logging import get_logger
+from ..types import QualityOfService as QoS
+from ..mqtt_config import MQTTConfig
+from ..mqtt_connections import MQTTConnectionV3, MQTTConnectionV5
 
+
+C = TypeVar("C", MQTTConnectionV3, MQTTConnectionV5)
 logger = get_logger(f"MqttBuilder")
 
 
-class MqttBuilder:
-    def __init__(self, client_id: str, host: str, protocol=mqtt.MQTTv311):
-        """
-        Initialize the builder.
-
-        :param client_id: Client identifier used by the MQTT client.
-        :param host: Broker hostname or IPv4/IPv6 literal.
-        :param protocol: One of paho.mqtt.client.MQTTv311 or MQTTv5.
-        """
+class MqttBuilder(Generic[C]):
+    def __init__(self, client_id: str, host: str, connector: Type[C]):
         self._config = MQTTConfig(client_id, host)
-        self._config.protocol = protocol
+        self._config.protocol = mqtt.MQTTv311 if connector is MQTTConnectionV3 else mqtt.MQTTv5
 
-        connector_type = MQTTConnectionV3 if self._config.protocol != mqtt.MQTTv5 else MQTTConnectionV5
-        self._connection: MqttConnectionBase = connector_type()
+        self._connection: Type[C] = connector()
 
-    def persistent_session(self, persistent_session: bool = True) -> MqttBuilder:
+    def persistent_session(self, persistent_session: bool = True) -> MqttBuilder[C]:
         """
         Control session persistence.
 
@@ -37,7 +33,7 @@ class MqttBuilder:
         self._config.clean_session = not persistent_session
         return self
 
-    def port(self, port: int) -> MqttBuilder:
+    def port(self, port: int) -> MqttBuilder[C]:
         """
         Set broker port. Default: 1883
 
@@ -47,7 +43,7 @@ class MqttBuilder:
         self._config.port = port
         return self
 
-    def keep_alive(self, keep_alive: int) -> MqttBuilder:
+    def keep_alive(self, keep_alive: int) -> MqttBuilder[C]:
         """
         Set keepalive seconds.
 
@@ -57,7 +53,7 @@ class MqttBuilder:
         self._config.keep_alive = keep_alive
         return self
 
-    def login(self, username: str, password: str) -> MqttBuilder:
+    def login(self, username: str, password: str) -> MqttBuilder[C]:
         """
         Set username and password.
 
@@ -69,7 +65,7 @@ class MqttBuilder:
         self._config.password = password
         return self
 
-    def availability(self, topic: str, payload_online: str = "online", payload_offline: str = "offline", qos: QoS = QoS.AtLeastOnce, retain: bool = True) -> MqttBuilder:
+    def availability(self, topic: str, payload_online: str = "online", payload_offline: str = "offline", qos: QoS = QoS.AtLeastOnce, retain: bool = True) -> MqttBuilder[C]:
         """
         Configure an availability topic.
         On successful connect, publish 'payload_online' to 'topic' with given qos/retain.
@@ -94,7 +90,7 @@ class MqttBuilder:
         self.last_will(topic, payload_offline, qos, retain)
         return self
 
-    def last_will(self, topic: str, payload: str = "offline",  qos: QoS = QoS.AtLeastOnce, retain: bool = True) -> MqttBuilder:
+    def last_will(self, topic: str, payload: str = "offline",  qos: QoS = QoS.AtLeastOnce, retain: bool = True) -> MqttBuilder[C]:
         """
         Set MQTT Last Will and Testament.
 
@@ -123,14 +119,14 @@ class MqttBuilder:
     )
     """
 
-    def _tls(self, settings: dict, allow_insecure: bool = False) -> MqttBuilder:
+    def _tls(self, settings: dict, allow_insecure: bool = False) -> MqttBuilder[C]:
         self._config.tls = {
             "settings": settings,
             "allow_insecure": allow_insecure
         }
         return self
 
-    def tls(self, allow_insecure: bool = False) -> MqttBuilder:
+    def tls(self, allow_insecure: bool = False) -> MqttBuilder[C]:
         """
         Enable TLS with default settings.
 
@@ -139,7 +135,7 @@ class MqttBuilder:
         """
         return self._tls({}, allow_insecure)
 
-    def own_tls(self, ca_certs: str, allow_insecure: bool = False) -> MqttBuilder:
+    def own_tls(self, ca_certs: str, allow_insecure: bool = False) -> MqttBuilder[C]:
         """
         Enable TLS with a custom CA bundle.
 
@@ -149,7 +145,7 @@ class MqttBuilder:
         """
         return self._tls({"ca_certs": ca_certs}, allow_insecure)
 
-    def auto_reconnect(self, min_delay=1, max_delay=30) -> MqttBuilder:
+    def auto_reconnect(self, min_delay=1, max_delay=30) -> MqttBuilder[C]:
         """
         Enable exponential backoff reconnects.
 
@@ -163,7 +159,7 @@ class MqttBuilder:
         }
         return self
 
-    def build(self, **additional_client_params) -> MqttConnectionBase:
+    def build(self, **additional_client_params) -> C:
         """
         Create the client and apply configuration.
 
@@ -198,13 +194,13 @@ class MqttBuilder:
             # MQTT version 5 clean session. Is persistent for 3600 sec
             connection_parameters["clean_start"] = self._config.clean_session
             props = Properties(PacketTypes.CONNECT)
-            props.SessionExpiryInterval = 3600  # seconds
+            props.SessionExpiryInterval = 3600 if not self._config.clean_session else 0  # seconds
             connection_parameters["properties"] = props
 
         self._connection.inject_client(client, connection_parameters)
         return self._connection
 
-    def fast_build(self, **additional_client_params) -> MqttConnectionBase:
+    def fast_build(self, **additional_client_params) -> C:
         """
         Create the client, apply configuration and connect.
 

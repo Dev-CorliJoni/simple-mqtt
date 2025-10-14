@@ -1,6 +1,6 @@
 # simple-mqtt
 
-Compact Python mqtt wrapper around **paho-mqtt**. Focus: clear builder pattern, clean split between MQTT v3.1.1 and v5.
+Compact Python MQTT wrapper around **paho-mqtt**. Focus: clear builder pattern and an explicit split between MQTT v3.1.1 and MQTT v5.
 
 ## Installation
 
@@ -8,20 +8,29 @@ Compact Python mqtt wrapper around **paho-mqtt**. Focus: clear builder pattern, 
 pip install simple-mqtt
 ```
 
-## Builder Pattern
+## Builders
 
-`MqttBuilder(client_id, host, protocol)` encapsulates connection options. Configure via method chaining. `build()` returns:
-- `MQTTConnectionV3` when `protocol != mqtt.MQTTv5`
-- `MQTTConnectionV5` when `protocol == mqtt.MQTTv5`
+This package exposes two concrete builders:
 
-## Quickstart: Minimal setup
+- `MQTTBuilderV3(client_id, host)` → builds a `MQTTConnectionV3` (MQTT v3.1.1)
+- `MQTTBuilderV5(client_id, host)` → builds a `MQTTConnectionV5` (MQTT v5.0)
+
+Both builders provide the same fluent configuration API.
+
+`build()` creates the connection wrapper and prepares the client.  
+`fast_build()` equals `build().connect()`.
+
+---
+
+## Quickstart: minimal setup
 
 Connect, subscribe, print messages.
 
+Identical for v3 and v5.
 ```python
-from simplemqtt import MqttBuilder, QualityOfService as QoS
+from simplemqtt import MQTTBuilderV3, QualityOfService as QoS  # for v5 swap to MQTTBuilderV5
 
-conn = MqttBuilder(client_id="demo-client", host="localhost").fast_build()
+conn = MQTTBuilderV3(client_id="demo-client", host="localhost").fast_build()
 
 def on_msg(connection, client, userdata, msg):
     print(f"[{msg.topic}] {msg.payload!r} retain={msg.retain} qos={msg.qos}")
@@ -34,43 +43,43 @@ conn.close()
 
 ---
 
-# How to get a valid connection
+## Defaults
 
-All variants build first, then `connect()`.
+- Port: `1883`, Keepalive: `60`  
+- Clean session: `True`  
+- For v5: `SessionExpiryInterval` = 0 by default (non‑persistent). If you call `.persistent_session(True)`, it is set to 3600 seconds.  
 
-> **Defaults:** Protocol = v311, Port `1883`, keepalive `60`, clean session `True`. For v5 a `SessionExpiryInterval=3600` is set.
+---
+
+## Build a connection
 
 ### 1) Minimal (constructor + connect)
-
 ```python
-from simplemqtt import MqttBuilder
+from simplemqtt import MQTTBuilderV3  # for v5 swap to MQTTBuilderV5
 
 conn = (
-    MqttBuilder("client-1", "broker.example.org")
-    .fast_build() # fast_build() = build().connect()
+    MQTTBuilderV3("client-1", "broker.example.org")
+    .fast_build()  # build().connect()
 )
 ```
 
 ### 2) With username/password
-
 ```python
-from simplemqtt import MqttBuilder
+from simplemqtt import MQTTBuilderV3  # for v5 swap to MQTTBuilderV5
 
 conn = (
-    MqttBuilder("client-2", "broker.example.org")
+    MQTTBuilderV3("client-2", "broker.example.org")
     .login("user", "password")
     .fast_build()
 )
 ```
 
 ### 3) Port + keepalive + persistent session + auto‑reconnect
-
 ```python
-import paho.mqtt.client as mqtt
-from simplemqtt import MqttBuilder
+from simplemqtt import MQTTBuilderV3  # for v5 swap to MQTTBuilderV5
 
 conn = (
-    MqttBuilder("client-3", "broker.example.org", protocol=mqtt.MQTTv311)
+    MQTTBuilderV3("client-3", "broker.example.org")
     .port(1884)
     .keep_alive(120)
     .persistent_session(True)
@@ -80,85 +89,78 @@ conn = (
 ```
 
 ### 4) Last Will (LWT)
-
 ```python
-from simplemqtt import MqttBuilder, QualityOfService as QoS
+from simplemqtt import MQTTBuilderV3, QualityOfService as QoS  # for v5 swap to MQTTBuilderV5
 
 conn = (
-    MqttBuilder("client-4", "broker.example.org")
+    MQTTBuilderV3("client-4", "broker.example.org")
     .last_will("devices/dev42/availability", payload="offline", qos=QoS.AtLeastOnce, retain=True)
     .fast_build()
 )
 ```
 
-### 5) Availability topic (includes LWT + online/offline)
-
-Creates an availability topic
-
+### 5) Availability topic
 ```python
-from simplemqtt import MqttBuilder
+from simplemqtt import MQTTBuilderV3  # for v5 swap to MQTTBuilderV5
 
 conn = (
-    MqttBuilder("client-5", "broker.example.org")
+    MQTTBuilderV3("client-5", "broker.example.org")
     .availability("devices/dev42/availability", payload_online="online", payload_offline="offline")
     .fast_build()
 )
 ```
 
 ### 6) TLS (defaults)
-
 ```python
-from simplemqtt import MqttBuilder
+from simplemqtt import MQTTBuilderV3  # for v5 swap to MQTTBuilderV5
 
 conn = (
-    MqttBuilder("client-6", "broker.example.org")
-    .tls()  # verify certificates
+    MQTTBuilderV3("client-6", "broker.example.org")
+    .tls()  # verify certificates using system defaults
     .fast_build()
 )
 ```
 
 ### 7) TLS with custom CA
-
 ```python
-from simplemqtt import MqttBuilder
+from simplemqtt import MQTTBuilderV3  # for v5 swap to MQTTBuilderV5
 
 conn = (
-    MqttBuilder("client-7", "broker.example.org")
+    MQTTBuilderV3("client-7", "broker.example.org")
     .own_tls("/etc/ssl/certs/ca-bundle.pem", allow_insecure=False)
     .fast_build()
 )
 ```
 
+> **TLS capabilities (current):**
+>
+> - Supported: server TLS with system CAs (`.tls()`), server TLS with custom CA bundle (`.own_tls(ca_certs=...)`), optional hostname skip via `allow_insecure=True`.
+> - Not yet wired in the builder: client certificates (`certfile`/`keyfile` mTLS), custom ciphers/TLS versions, WebSockets-specific TLS options. You can still access these via raw `paho-mqtt` if needed.
+
 ---
 
-# How to use a connection
-
-## Common operations (v3 and v5)
+## Use a connection
 
 ### Connect
 
 ```python
-from simplemqtt import MqttBuilder
+from simplemqtt import MQTTBuilderV3  # for v5 swap to MQTTBuilderV5
 
-conn = MqttBuilder("client-1", "broker.example.org").build()
-    
-# Non-blocking (recommended for apps with own threading)
+conn = MQTTBuilderV3("client-1", "broker.example.org").build()
 conn.connect()
-
-# Blocking (runs until disconnect)
+# or
 conn.connect(blocking=True)
 ```
 
-### Use callbacks V3
-
+### Callbacks (V3)
 ```python
 import logging
-from simplemqtt import MqttBuilder
+from simplemqtt import MQTTBuilderV3
 from simplemqtt.mqtt_connections import MQTTConnectionV3
 
 logger = logging.getLogger("Info")
 
-conn = MqttBuilder("client-2", "broker.example.org").fast_build()
+conn = MQTTBuilderV3("client-2", "broker.example.org").fast_build()
 
 def on_connect_v3(connection: MQTTConnectionV3, client, userdata, flags):
     connection.publish("say/hello", "hello :)")
@@ -167,24 +169,22 @@ def before_disconnect_v3(connection: MQTTConnectionV3):
     connection.publish("say/hello", "bye :(")
 
 def on_disconnect_v3(client, userdata, rc):
-    logger.info("To late for publishing")
-    
+    logger.info("Too late for publishing")
+
 conn.add_on_connect(on_connect_v3)
 conn.add_before_disconnect(before_disconnect_v3)
 conn.add_on_disconnect(on_disconnect_v3)
-
 ```
 
-### Use callbacks V3
-
+### Callbacks (V5)
 ```python
 import logging
-from simplemqtt import MqttBuilder
+from simplemqtt import MQTTBuilderV5
 from simplemqtt.mqtt_connections import MQTTConnectionV5
 
 logger = logging.getLogger("Info")
 
-conn = MqttBuilder("client-2", "broker.example.org").fast_build()
+conn = MQTTBuilderV5("client-2", "broker.example.org").fast_build()
 
 def on_connect_v5(connection: MQTTConnectionV5, client, userdata, flags, properties):
     connection.publish("say/hello", "hello :)")
@@ -193,8 +193,8 @@ def before_disconnect_v5(connection: MQTTConnectionV5):
     connection.publish("say/hello", "bye :(")
 
 def on_disconnect_v5(client, userdata, rc, properties):
-    logger.info("To late for publishing")
-    
+    logger.info("Too late for publishing")
+
 conn.add_on_connect(on_connect_v5)
 conn.add_before_disconnect(before_disconnect_v5)
 conn.add_on_disconnect(on_disconnect_v5)
@@ -202,6 +202,7 @@ conn.add_on_disconnect(on_disconnect_v5)
 
 ### Subscribe
 
+Identical for v3 and v5.
 ```python
 from simplemqtt import QualityOfService as QoS
 
@@ -213,24 +214,26 @@ conn.subscribe("sensors/+/temp", on_message=on_msg, qos=QoS.AtLeastOnce)
 
 ### Unsubscribe
 
+Identical for v3 and v5.
 ```python
-# Remove one or more filters;
+# Remove one or more filters
 conn.unsubscribe("sensors/+/temp", "actuators/#")
 ```
 
 ### Close
 
+Identical for v3 and v5.
 ```python
 conn.close()          # loop_stop + disconnect
-# conn.close(force=True)   # stop loop immediately
 ```
 
-## Protocol-specific
+---
+
+## Protocol specifics
 
 ### MQTT v3.1.1
 
 **Publish**
-
 ```python
 from simplemqtt import QualityOfService as QoS
 
@@ -245,7 +248,6 @@ conn.publish("demo/topic", "payload", qos=QoS.AtLeastOnce, wait_for_publish=True
 ```
 
 **Subscribe**
-
 ```python
 from simplemqtt import QualityOfService as QoS
 
@@ -257,25 +259,20 @@ conn.subscribe("demo/v3/#", on_message=on_msg_v3, qos=QoS.ExactlyOnce)
 
 ### MQTT v5
 
-> Build with v5 to get a v5 connection:
->
-> ```python
-> import paho.mqtt.client as mqtt
-> from simplemqtt import MqttBuilder
-> conn = MqttBuilder("client-5", "broker.example.org", protocol=mqtt.MQTTv5).fast_build()
-> ```
+**Build a v5 connection**
+```python
+from simplemqtt import MQTTBuilderV5
+conn = MQTTBuilderV5("client-5", "broker.example.org").fast_build()
+```
 
 **Publish** with properties
-
 ```python
-import paho.mqtt.client as mqtt
 from paho.mqtt.properties import Properties
 from paho.mqtt.packettypes import PacketTypes
 from simplemqtt import QualityOfService as QoS
 
 props = Properties(PacketTypes.PUBLISH)
-props.MessageExpiryInterval = 30   # seconds
-# More properties: ContentType, ResponseTopic, CorrelationData, UserProperty, ...
+props.MessageExpiryInterval = 30  # seconds
 
 # Simple
 conn.publish("demo5/topic", "payload-v5")
@@ -288,22 +285,19 @@ conn.publish("demo5/topic", "payload-v5", qos=QoS.AtLeastOnce, wait_for_publish=
 ```
 
 **Subscribe** with options
-
 ```python
 from simplemqtt import QualityOfService as QoS, RetainHandling
 
 def on_msg_v5(connection, client, userdata, msg):
     print("v5:", msg.topic, msg.payload, "retain:", msg.retain)
 
-# no_local: do not receive own publishes
-# retain_handling: e.g. only deliver retained on new subscription
 conn.subscribe(
     "demo5/#",
     on_message=on_msg_v5,
     qos=QoS.AtLeastOnce,
     no_local=True,
     retain_as_published=True,
-    retain_handling=RetainHandling.SendRetainedOnNewSubscription
+    retain_handling=RetainHandling.SendRetainedOnNewSubscription,
 )
 ```
 
@@ -311,7 +305,7 @@ conn.subscribe(
 
 ## Logging
 
-The package uses `logging` with a `NullHandler`. Enable it like this:
+This package uses `logging` with a `NullHandler`. Enable it like this:
 
 ```python
 import logging
@@ -322,11 +316,11 @@ logging.getLogger("simplemqtt").setLevel(logging.DEBUG)
 ## Best practices
 
 - Use a stable `client_id` per device.
-- Set LWT (`.last_will(...)`) with QoS≥1 and `retain=True`.
+- Set LWT (`.last_will(...)`) with QoS ≥ 1 and `retain=True`.
 - Enable auto‑reconnect for production.
-- For v5 use `retain_handling` and `no_local` to reduce retained floods and pub/sub loops.
+- For v5, use `retain_handling` and `no_local` to reduce retained floods and pub/sub loops.
 
 ## License
 
 MIT (see `LICENSE`).
-
+</file>

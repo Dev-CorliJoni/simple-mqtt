@@ -3,8 +3,8 @@
 .DS_Store
 .git/
 
-tests
 dist
+tests/docker/mosquitto
 
 simple_mqtt.egg-info
 venv

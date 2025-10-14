@@ -1,5 +1,7 @@
 LOKAL.README.md
 .idea
+tests/docker/mosquitto/data/*
+tests/docker/mosquitto/log/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -35,7 +35,7 @@ class MqttConnectionBase:
         self._on_disconnect_callbacks = []
 
     def inject_client(self, client: mqtt.Client, connection_parameters: dict):
-        self._client = client
+        self._client: mqtt.Client = client
         self._client.on_connect = self._on_connect
         self._client.on_disconnect = self._on_disconnect
         self._client.on_message = self._on_message_handler
@@ -64,10 +64,10 @@ class MqttConnectionBase:
         else:
             return version3
 
-    def _on_connect_filter(self, client, userdata, flags, properties):
+    def _on_connect_version_parameter_filter(self, client, userdata, flags, properties):
         return self._version_filter((self, client, userdata, flags), (self, client, userdata, flags, properties))
 
-    def _on_disconnect_filter(self, client, userdata, rc, properties):
+    def _on_disconnect_version_parameter_filter(self, client, userdata, rc, properties):
         return self._version_filter((client, userdata, rc), (client, userdata, rc, properties))
 
     def _on_connect(self, client, userdata, flags, rc, properties=None):
@@ -76,7 +76,7 @@ class MqttConnectionBase:
         if success:
             logger.info("MQTT connected")
             invoke_callbacks(self._on_connect_callbacks, "On Connect",
-                             *self._on_connect_filter(client, userdata, flags, properties))
+                             *self._on_connect_version_parameter_filter(client, userdata, flags, properties))
         else:
             logger.error(f"MQTT connect failed rc={rc}")
 
@@ -93,7 +93,7 @@ class MqttConnectionBase:
                 logger.warning(f"MQTT disconnected unexpectedly rc={rc}")
 
         invoke_callbacks(self._on_disconnect_callbacks, "On Disconnect",
-                         *self._on_disconnect_filter(client, userdata, rc, properties))
+                         *self._on_disconnect_version_parameter_filter(client, userdata, rc, properties))
 
     def _on_message_handler(self, client, userdata, msg: mqtt.MQTTMessage):
         on_message_callbacks = [handler for topic, handler in self._subscription_handlers.items()
@@ -121,14 +121,14 @@ class MqttConnectionBase:
         topics = list(topics)
         for topic in topics:
             self._subscription_handlers.pop(topic, None)
-        self._client.unsubscribe(topic=topics)
+        self._client.unsubscribe(topics)
 
-    def close(self, force: bool = False):
+    def close(self):
         """
         Stop network loop and disconnect cleanly.
 
         :return: None
         """
         invoke_callbacks(self._before_disconnect_callbacks, "Before Disconnect", self)
-        self._client.loop_stop(force)
+        self._client.loop_stop()
         self._client.disconnect()
