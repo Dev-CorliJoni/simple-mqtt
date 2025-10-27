@@ -25,9 +25,10 @@ classifiers = [
 dynamic = ["version","dependencies"]
 
 [project.urls]
-Homepage = "https://github.com/Dev-CorliJoni/simple-mqtt"
+GitHub = "https://github.com/Dev-CorliJoni/simple-mqtt"
 Source   = "https://github.com/Dev-CorliJoni/simple-mqtt"
 Issues   = "https://github.com/Dev-CorliJoni/simple-mqtt/issues"
+Instagram  = "https://www.instagram.com/dev.corlijoni/"
 
 
 [tool.setuptools.packages.find]

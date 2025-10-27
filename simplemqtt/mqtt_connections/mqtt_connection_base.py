@@ -28,18 +28,28 @@ class MqttConnectionBase:
     def __init__(self):
         self._client = None
         self._connection_parameters = None
+        self._availability_topic = None
 
         self._subscription_handlers: Dict[str, Callable[[Any, mqtt.Client, Any, mqtt.MQTTMessage], None]] = {}
         self._on_connect_callbacks = []
         self._before_disconnect_callbacks = []
         self._on_disconnect_callbacks = []
 
-    def inject_client(self, client: mqtt.Client, connection_parameters: dict):
+    def inject_client(self, client: mqtt.Client, connection_parameters: dict, availability_topic: str) -> None:
         self._client: mqtt.Client = client
         self._client.on_connect = self._on_connect
         self._client.on_disconnect = self._on_disconnect
         self._client.on_message = self._on_message_handler
         self._connection_parameters = connection_parameters
+        self._availability_topic = availability_topic
+
+    @property
+    def availability_topic(self) -> str:
+        return self._availability_topic
+
+    @property
+    def is_connected(self):
+        return self._client.is_connected
 
     def connect(self, blocking: bool = False, **connection_parameters):
         """
@@ -101,7 +111,7 @@ class MqttConnectionBase:
         invoke_callbacks(on_message_callbacks, f"On Message(Topic: {msg.topic})", self, client, userdata, msg)
 
     def _publish(self, topic: str, payload, qos: QoS = QoS.AtMostOnce, retain: bool = False,
-                 properties: Optional[Properties] = None, wait_for_publish: bool = False):
+                 properties: Optional[Properties] = None, wait_for_publish: bool = False) -> mqtt.MQTTMessageInfo:
         info = self._client.publish(topic, payload, qos, retain, properties)
         if wait_for_publish:
             info.wait_for_publish()

@@ -2,6 +2,8 @@ LOKAL.README.md
 .idea
 tests/docker/mosquitto/data/*
 tests/docker/mosquitto/log/*
+upload-pypi.sh
+upload-testpypi.sh
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

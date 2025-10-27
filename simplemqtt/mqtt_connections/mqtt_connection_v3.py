@@ -50,7 +50,7 @@ class MQTTConnectionV3(MqttConnectionBase):
 
         :return:
         """
-        return super()._publish(topic, payload, qos, retain, None, wait_for_publish)
+        return super()._publish(topic, payload, qos, retain, None, wait_for_publish).wait_for_publish()
 
     def subscribe(self, topic: str, on_message: Callable[[MQTTConnectionV3, Client, Any, MQTTMessage], None], qos: QoS = QoS.AtMostOnce):
         """

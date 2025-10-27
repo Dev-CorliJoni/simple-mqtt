@@ -13,7 +13,7 @@ from ..mqtt_connections import MQTTConnectionV3, MQTTConnectionV5
 
 
 C = TypeVar("C", MQTTConnectionV3, MQTTConnectionV5)
-logger = get_logger(f"MqttBuilder")
+logger = get_logger("MqttBuilder")
 
 
 class MqttBuilder(Generic[C]):
@@ -181,8 +181,10 @@ class MqttBuilder(Generic[C]):
         if self._config.require_login:
             client.username_pw_set(self._config.username, self._config.password)
 
+        availability_topic = None
         if self._config.has_last_will:
             client.will_set(**self._config.last_will)
+            availability_topic = self._config.last_will.topic
 
         connection_parameters = {
             "host": self._config.host,
@@ -197,7 +199,7 @@ class MqttBuilder(Generic[C]):
             props.SessionExpiryInterval = 3600 if not self._config.clean_session else 0  # seconds
             connection_parameters["properties"] = props
 
-        self._connection.inject_client(client, connection_parameters)
+        self._connection.inject_client(client, connection_parameters, availability_topic)
         return self._connection
 
     def fast_build(self, **additional_client_params) -> C:
