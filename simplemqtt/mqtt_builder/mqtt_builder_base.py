@@ -184,7 +184,7 @@ class MqttBuilder(Generic[C]):
         availability_topic = None
         if self._config.has_last_will:
             client.will_set(**self._config.last_will)
-            availability_topic = self._config.last_will.topic
+            availability_topic = self._config.last_will["topic"]
 
         connection_parameters = {
             "host": self._config.host,

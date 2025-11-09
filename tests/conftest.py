@@ -1,5 +1,9 @@
 from __future__ import annotations
+
+import base64
 import os
+import random
+import secrets
 import time
 import uuid
 import queue
@@ -44,9 +48,15 @@ def broker_env():
     }
 
 
+def generate_rand_str(length: int = 16) -> str:
+    # Uniform URL-safe string, 6 bits per char
+    nbytes = (length * 6 + 7) // 8  # integer ceil(length*3/4)
+    return base64.urlsafe_b64encode(secrets.token_bytes(nbytes)).rstrip(b"=").decode("ascii")[:length]
+
+
 @pytest.fixture(scope="session")
 def mqtt_builder(broker_env):
-    b = MQTTBuilderV3(broker_env["client_id"], broker_env["host"])
+    b = MQTTBuilderV3(f"{broker_env['client_id']}{generate_rand_str()}", broker_env["host"])
     b.port(broker_env["port"]).keep_alive(broker_env["keepalive"])
 
     if broker_env["username"] and broker_env["password"]:

@@ -8,6 +8,12 @@ Compact Python MQTT wrapper around **paho-mqtt**. Focus: clear builder pattern a
 pip install simple-mqtt
 ```
 
+Optional: for image helpers (`get_image_pil`) install `Pillow`:
+
+```bash
+python -m pip install Pillow
+```
+
 ## Builders
 
 This package exposes two concrete builders:
@@ -24,16 +30,16 @@ Both builders provide the same fluent configuration API.
 
 ## Quickstart: minimal setup
 
-Connect, subscribe, print messages.
+Connect, subscribe, print messages. Identical for v3 and v5.
 
-Identical for v3 and v5.
 ```python
 from simplemqtt import MQTTBuilderV3, QualityOfService as QoS  # for v5 swap to MQTTBuilderV5
 
 conn = MQTTBuilderV3(client_id="demo-client", host="localhost").fast_build()
 
 def on_msg(connection, client, userdata, msg):
-    print(f"[{msg.topic}] {msg.payload!r} retain={msg.retain} qos={msg.qos}")
+    # msg is simplemqtt.MQTTMessage
+    print(f"[{msg.topic}] {msg.text!r} retain={msg.retain} qos={int(msg.qos)}")
 
 conn.subscribe("test/topic", on_message=on_msg, qos=QoS.AtLeastOnce)
 conn.publish("test/topic", "hello", qos=QoS.AtLeastOnce, retain=False)
@@ -45,9 +51,9 @@ conn.close()
 
 ## Defaults
 
-- Port: `1883`, Keepalive: `60`  
-- Clean session: `True`  
-- For v5: `SessionExpiryInterval` = 0 by default (non‑persistent). If you call `.persistent_session(True)`, it is set to 3600 seconds.  
+- Port: `1883`, Keepalive: `60`
+- Clean session: `True`
+- For v5: `SessionExpiryInterval` = 0 by default (non‑persistent). If you call `.persistent_session(True)`, it is set to 3600 seconds.
 
 ---
 
@@ -110,6 +116,8 @@ conn = (
 )
 ```
 
+> When `availability(...)` is enabled, the builder also sets the Last Will to `payload_offline`, publishes `payload_online` on connect, and publishes `payload_offline` once before disconnect (using the provided QoS/retain values).
+
 ### 6) TLS (defaults)
 ```python
 from simplemqtt import MQTTBuilderV3  # for v5 swap to MQTTBuilderV5
@@ -135,14 +143,13 @@ conn = (
 > **TLS capabilities (current):**
 >
 > - Supported: server TLS with system CAs (`.tls()`), server TLS with custom CA bundle (`.own_tls(ca_certs=...)`), optional hostname skip via `allow_insecure=True`.
-> - Not yet wired in the builder: client certificates (`certfile`/`keyfile` mTLS), custom ciphers/TLS versions, WebSockets-specific TLS options. You can still access these via raw `paho-mqtt` if needed.
+> - Not yet wired in the builder: client certificates (`certfile`/`keyfile` mTLS), custom ciphers/TLS versions, WebSockets-specific TLS options. These remain available through the raw `paho-mqtt` client.
 
 ---
 
 ## Use a connection
 
 ### Connect
-
 ```python
 from simplemqtt import MQTTBuilderV3  # for v5 swap to MQTTBuilderV5
 
@@ -207,10 +214,36 @@ Identical for v3 and v5.
 from simplemqtt import QualityOfService as QoS
 
 def on_msg(connection, client, userdata, msg):
-    print(msg.topic, msg.payload)
+    print(msg.topic, msg.text)
 
 conn.subscribe("sensors/+/temp", on_message=on_msg, qos=QoS.AtLeastOnce)
 ```
+
+### Message object (`MQTTMessage`)
+
+Callbacks receive a `simplemqtt.MQTTMessage` instance.
+
+Core attributes:
+
+- `topic: str`
+- `qos: Optional[QualityOfService]` (cast with `int(msg.qos)` to print numeric)
+- `retain: bool`
+
+Type flags:
+
+- `is_text`, `is_json`, `is_image`, `is_audio`, `is_binary`
+
+Accessors and conversions:
+
+- Text: `msg.text` (auto‑decoded) or `msg.get_text("latin-1")` for a specific charset
+- Bytes: `msg.payload_bytes`
+- JSON: `msg.json_value`
+- Numbers: `msg.boolean_value`, `msg.integer_value`, `msg.float_value`
+- Images: `msg.image_bytes_and_media_type` → `(bytes, media_type)`, `msg.get_image_pil()` (requires Pillow)
+
+Comparisons:
+
+- `msg == "online"`, `msg == b"raw"`, `msg == {"k": "v"}` (JSON), `msg == True`
 
 ### Unsubscribe
 
@@ -252,7 +285,7 @@ conn.publish("demo/topic", "payload", qos=QoS.AtLeastOnce, wait_for_publish=True
 from simplemqtt import QualityOfService as QoS
 
 def on_msg_v3(connection, client, userdata, msg):
-    print("v3:", msg.topic, msg.payload)
+    print("v3:", msg.topic, msg.text)
 
 conn.subscribe("demo/v3/#", on_message=on_msg_v3, qos=QoS.ExactlyOnce)
 ```
@@ -289,7 +322,7 @@ conn.publish("demo5/topic", "payload-v5", qos=QoS.AtLeastOnce, wait_for_publish=
 from simplemqtt import QualityOfService as QoS, RetainHandling
 
 def on_msg_v5(connection, client, userdata, msg):
-    print("v5:", msg.topic, msg.payload, "retain:", msg.retain)
+    print("v5:", msg.topic, msg.text, "retain:", msg.retain)
 
 conn.subscribe(
     "demo5/#",
@@ -323,4 +356,4 @@ logging.getLogger("simplemqtt").setLevel(logging.DEBUG)
 ## License
 
 MIT (see `LICENSE`).
-</file>
+

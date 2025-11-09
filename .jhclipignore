@@ -15,3 +15,6 @@ venv
 .env
 
 */__pycache__
+
+upload-testpypi.sh
+upload-pypi.sh

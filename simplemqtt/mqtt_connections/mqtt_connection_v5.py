@@ -1,10 +1,11 @@
 from __future__ import annotations
 from typing import Callable, Any, Optional
 
-from paho.mqtt.client import MQTTMessage, Client
+from paho.mqtt.client import Client
 from paho.mqtt.properties import Properties
 from paho.mqtt.subscribeoptions import SubscribeOptions
 
+from simplemqtt import MQTTMessage
 from simplemqtt.types import QualityOfService as QoS, RetainHandling
 from .mqtt_connection_base import MqttConnectionBase
 

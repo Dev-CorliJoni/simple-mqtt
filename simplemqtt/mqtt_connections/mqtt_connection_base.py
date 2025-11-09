@@ -4,6 +4,7 @@ import paho.mqtt.client as mqtt
 from paho.mqtt.properties import Properties
 from typing import Callable, Any, Dict, Optional
 
+from simplemqtt import MQTTMessage
 from simplemqtt.setup_logging import get_logger
 from simplemqtt.types import QualityOfService as QoS
 
@@ -30,12 +31,12 @@ class MqttConnectionBase:
         self._connection_parameters = None
         self._availability_topic = None
 
-        self._subscription_handlers: Dict[str, Callable[[Any, mqtt.Client, Any, mqtt.MQTTMessage], None]] = {}
+        self._subscription_handlers: Dict[str, Callable[[Any, mqtt.Client, Any, MQTTMessage], None]] = {}
         self._on_connect_callbacks = []
         self._before_disconnect_callbacks = []
         self._on_disconnect_callbacks = []
 
-    def inject_client(self, client: mqtt.Client, connection_parameters: dict, availability_topic: str) -> None:
+    def inject_client(self, client: mqtt.Client, connection_parameters: dict, availability_topic: str | None) -> None:
         self._client: mqtt.Client = client
         self._client.on_connect = self._on_connect
         self._client.on_disconnect = self._on_disconnect
@@ -44,7 +45,7 @@ class MqttConnectionBase:
         self._availability_topic = availability_topic
 
     @property
-    def availability_topic(self) -> str:
+    def availability_topic(self) -> str | None:
         return self._availability_topic
 
     @property
@@ -106,9 +107,10 @@ class MqttConnectionBase:
                          *self._on_disconnect_version_parameter_filter(client, userdata, rc, properties))
 
     def _on_message_handler(self, client, userdata, msg: mqtt.MQTTMessage):
+        message = MQTTMessage(msg)
         on_message_callbacks = [handler for topic, handler in self._subscription_handlers.items()
-                                if mqtt.topic_matches_sub(topic, msg.topic)]
-        invoke_callbacks(on_message_callbacks, f"On Message(Topic: {msg.topic})", self, client, userdata, msg)
+                                if mqtt.topic_matches_sub(topic, message.topic)]
+        invoke_callbacks(on_message_callbacks, f"On Message(Topic: {message.topic})", self, client, userdata, message)
 
     def _publish(self, topic: str, payload, qos: QoS = QoS.AtMostOnce, retain: bool = False,
                  properties: Optional[Properties] = None, wait_for_publish: bool = False) -> mqtt.MQTTMessageInfo:
@@ -117,7 +119,7 @@ class MqttConnectionBase:
             info.wait_for_publish()
         return info
 
-    def _subscribe(self, topic: str, on_message: Callable[[Any, mqtt.Client, Any, mqtt.MQTTMessage], None], **kwargs) -> tuple[int, int]:
+    def _subscribe(self, topic: str, on_message: Callable[[Any, mqtt.Client, Any, MQTTMessage], None], **kwargs) -> tuple[int, int]:
         self._subscription_handlers[topic] = on_message
         return self._client.subscribe(topic, **kwargs)
 

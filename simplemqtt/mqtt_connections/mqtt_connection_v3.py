@@ -1,7 +1,8 @@
 from __future__ import annotations
 from typing import Callable, Any
 
-from paho.mqtt.client import MQTTMessage, Client
+from paho.mqtt.client import Client
+from simplemqtt import MQTTMessage
 
 from simplemqtt.types import QualityOfService as QoS
 from .mqtt_connection_base import MqttConnectionBase
@@ -50,7 +51,7 @@ class MQTTConnectionV3(MqttConnectionBase):
 
         :return:
         """
-        return super()._publish(topic, payload, qos, retain, None, wait_for_publish).wait_for_publish()
+        return super()._publish(topic, payload, qos, retain, None, wait_for_publish)
 
     def subscribe(self, topic: str, on_message: Callable[[MQTTConnectionV3, Client, Any, MQTTMessage], None], qos: QoS = QoS.AtMostOnce):
         """

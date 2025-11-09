@@ -12,7 +12,7 @@ def test_roundtrip_publish_subscribe(connection, unique_topic, msg_queue, qos):
     def _cb(conn, client, userdata, msg):
         msg_qos = msg.qos
         assert msg.topic == topic
-        assert msg.payload.decode() == payload
+        assert msg.text == payload
         msg_queue.put(msg_qos)
 
     rc, _ = connection.subscribe(topic, _cb, qos=qos)
@@ -25,6 +25,7 @@ def test_roundtrip_publish_subscribe(connection, unique_topic, msg_queue, qos):
     assert received_qos == int(qos)
 
 
+
 def test_retain_flag(connection, unique_topic, msg_queue):
     topic = unique_topic("retain")
     # Publish a retained message
@@ -32,7 +33,7 @@ def test_retain_flag(connection, unique_topic, msg_queue):
 
     def _cb(conn, client, userdata, msg):
         assert msg.retain is True
-        msg_queue.put(msg.payload.decode())
+        msg_queue.put(msg.text)
 
     rc, _ = connection.subscribe(topic, _cb, qos=QoS.AtLeastOnce)
     assert rc == 0
